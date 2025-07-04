@@ -15,14 +15,12 @@ app.use(cors({
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Connect to MongoDB
 mongoose.connect("mongodb://localhost:27017/automation", {
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(() => console.log(' Connected to MongoDB'))
   .catch((err) => console.error(' MongoDB connection error:', err));
 
-// Define MongoDB Schemas
 const productSchema = new mongoose.Schema({
   productId: { type: String },
   productName: { type: String },
@@ -46,12 +44,10 @@ app.post("/api/racks/add-product", async (req, res) => {
     const { rackId, productId, quantity, weight } = req.body;
     const timestamp = new Date();
 
-    // Input validation
     if (!rackId || !productId || isNaN(quantity) || quantity <= 0 || isNaN(weight) || weight <= 0) {
       return res.status(400).json({ message: "Invalid input. Check rackId, productId, quantity, and weight." });
     }
 
-    // Check if product exists globally
     const existingProduct = await Product.findOne({ productId });
     if (!existingProduct) {
       return res.status(400).json({ message: "Product ID does not exist in the product database." });
@@ -59,21 +55,17 @@ app.post("/api/racks/add-product", async (req, res) => {
 
     const productName = existingProduct.productName;
 
-    // Check if requested rack exists
     const rack = await Rack.findOne({ rackId });
     if (!rack) {
       return res.status(404).json({ message: "Rack not found" });
     }
 
-    // Calculate total weight already in rack
     const totalCurrentWeight = rack.products.reduce((sum, product) => sum + product.weight, 0);
 
-    // Check rack capacity
     if (totalCurrentWeight + weight > rack.maxCapacity) {
       return res.status(400).json({ message: "Rack capacity exceeded" });
     }
 
-    // ✅ Check if any other rack already has the same product and enough space
     const availableRack = await Rack.findOne({
       "products.productId": productId,
     });
@@ -170,12 +162,12 @@ app.delete("/api/racks/remove-stock", async (req, res) => {
       }
     }
 
-    // Sort by timestamp (FIFO)
+   
     matchingProducts.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
     let remainingQty = quantity;
     let remainingWeight = weight;
-    const perRackQtyMap = new Map(); // New: Track how much removed per rack
+    const perRackQtyMap = new Map(); 
 
     for (let entry of matchingProducts) {
       if (remainingQty <= 0 && remainingWeight <= 0) break;
@@ -192,13 +184,12 @@ app.delete("/api/racks/remove-stock", async (req, res) => {
       remainingQty -= removeQty;
       remainingWeight -= removeWeight;
 
-      // Track removed quantity per rack
       perRackQtyMap.set(
         rack.rackId,
         (perRackQtyMap.get(rack.rackId) || 0) + removeQty
       );
 
-      // Remove product entry if quantity is 0
+      
       rack.products = rack.products.filter(p => !(p.productId === productId && p.quantity === 0));
 
       await rack.save();
@@ -208,7 +199,7 @@ app.delete("/api/racks/remove-stock", async (req, res) => {
       return res.status(400).json({ message: "Not enough stock to fulfill the request." });
     }
 
-    // Build summary
+    
     const removalSummary = Array.from(perRackQtyMap.entries()).map(([rackId, qty]) => ({
       rackId,
       quantityRemoved: qty
@@ -237,24 +228,23 @@ app.post('/data', async (req, res) => {
     );
 
     if (!updatedItem) {
-      return res.status(404).json({ message: "❌ Product not found" });
+      return res.status(404).json({ message: " Product not found" });
     }
 
-    res.json({ message: "✅ Data updated successfully", updatedItem });
+    res.json({ message: " Data updated successfully", updatedItem });
   } catch (err) {
-    res.status(500).json({ message: "❌ Error updating data", error: err.message });
+    res.status(500).json({ message: "Error updating data", error: err.message });
   }
 
-  console.log('📡 Data received from ESP32:', req.body);
+  console.log(' Data received from ESP32:', req.body);
 });
 
-// 📌 Fetch All Racks and Products
 app.get('/getdata', async (req, res) => {
   try {
     const racks = await Rack.find();
     res.json(racks);
   } catch (error) {
-    res.status(500).json({ error: '❌ Error fetching data' });
+    res.status(500).json({ error: ' Error fetching data' });
   }
 });
 
